@@ -24,12 +24,14 @@
   let toastElement = null;
   let settings = { ...DEFAULTS };
   let lockedSelection = null; // Элемент, зафиксированный через Ctrl+Scroll (null = обычный режим наведения)
-  let draggingElement = null; // Элемент, с которого начали измерение расстояния
 
   // Box Model оверлеи (визуализация margin/padding)
   let boxModelOverlay = null;
   let marginOverlay = null;
   let paddingOverlay = null;
+
+  // Второй оверлей подсветки (для второго элемента при измерении)
+  let secondOverlay = null;
 
   // Визуализация расстояния между элементами
   let distanceLine = null;
@@ -39,12 +41,44 @@
   async function init() {
     await loadSettings();
     createOverlay();
+    createSecondOverlay();
     createInfoPanel();
     createDistancePanel();
     createBoxModelOverlays();
     createDistanceVisuals();
     attachEventListeners();
     attachMessageListener();
+  }
+
+  // === Создание второго оверлея подсветки ===
+  function createSecondOverlay() {
+    secondOverlay = document.createElement('div');
+    secondOverlay.id = 'html-copy-hover-overlay2';
+    secondOverlay.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      border: 0.5px solid rgba(255, 118, 117, 0.9);
+      background: rgba(255, 118, 117, 0.05);
+      border-radius: 0;
+      z-index: 2147483647;
+      display: none;
+      box-shadow: 0 0 0 0.5px rgba(255, 118, 117, 0.15);
+    `;
+    document.documentElement.appendChild(secondOverlay);
+  }
+
+  // === Обновление второго оверлея ===
+  function updateSecondOverlay(el) {
+    if (!secondOverlay || !el) {
+      secondOverlay.style.display = 'none';
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    secondOverlay.style.top = `${rect.top}px`;
+    secondOverlay.style.left = `${rect.left}px`;
+    secondOverlay.style.width = `${rect.width}px`;
+    secondOverlay.style.height = `${rect.height}px`;
+    secondOverlay.style.display = 'block';
   }
 
   // === Загрузка настроек из storage ===
@@ -255,52 +289,114 @@
   // === Обновление визуализации расстояния ===
   function updateDistanceVisuals(el1, el2) {
     if (!el1 || !el2 || !distanceLine || !distanceLabel) {
-      distanceLine.style.display = 'none';
-      distanceLabel.style.display = 'none';
+      if (distanceLine) distanceLine.style.display = 'none';
+      if (distanceLabel) distanceLabel.style.display = 'none';
       return;
     }
 
     const rect1 = el1.getBoundingClientRect();
     const rect2 = el2.getBoundingClientRect();
 
-    // Центры элементов
-    const x1 = rect1.left + rect1.width / 2;
-    const y1 = rect1.top + rect1.height / 2;
-    const x2 = rect2.left + rect2.width / 2;
-    const y2 = rect2.top + rect2.height / 2;
+    // Определяем расстояние от края до края
+    const hGapLeftToRight = Math.max(0, rect2.left - rect1.right);
+    const hGapRightToLeft = Math.max(0, rect1.left - rect2.right);
+    const hGap = hGapLeftToRight || hGapRightToLeft;
 
-    // Расстояние между центрами
-    const dist = Math.round(Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2));
+    const vGapTopToBottom = Math.max(0, rect2.top - rect1.bottom);
+    const vGapBottomToTop = Math.max(0, rect1.top - rect2.bottom);
+    const vGap = vGapTopToBottom || vGapBottomToTop;
 
-    // Настраиваем SVG
-    const minX = Math.min(x1, x2);
-    const minY = Math.min(y1, y2);
-    const maxX = Math.max(x1, x2);
-    const maxY = Math.max(y1, y2);
-    const padding = 10;
+    const isHorizontal = hGapLeftToRight > 0 || hGapRightToLeft > 0;
+    const isVertical = vGapTopToBottom > 0 || vGapBottomToTop > 0;
 
-    distanceLine.style.left = `${minX - padding}px`;
-    distanceLine.style.top = `${minY - padding}px`;
-    distanceLine.style.width = `${maxX - minX + padding * 2}px`;
-    distanceLine.style.height = `${maxY - minY + padding * 2}px`;
-    distanceLine.style.display = 'block';
+    const pad = 20;
 
-    // Линия
-    distanceLine.innerHTML = `
-      <line x1="${x1 - minX + padding}" y1="${y1 - minY + padding}" 
-            x2="${x2 - minX + padding}" y2="${y2 - minY + padding}" 
-            stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-      <circle cx="${x1 - minX + padding}" cy="${y1 - minY + padding}" r="3" fill="#ff7675"/>
-      <circle cx="${x2 - minX + padding}" cy="${y2 - minY + padding}" r="3" fill="#ff7675"/>
-    `;
+    if (isHorizontal) {
+      // Горизонтальная линия между краями элементов
+      const fromRight = hGapLeftToRight > 0;
+      const lineY = (Math.max(rect1.top, rect2.top) + Math.min(rect1.bottom, rect2.bottom)) / 2;
+      const fromX = fromRight ? rect1.right : rect2.right;
+      const toX = fromRight ? rect2.left : rect1.left;
 
-    // Метка посередине
-    const midX = (x1 + x2) / 2;
-    const midY = (y1 + y2) / 2;
-    distanceLabel.textContent = `${dist}px`;
-    distanceLabel.style.left = `${midX}px`;
-    distanceLabel.style.top = `${midY - 16}px`;
-    distanceLabel.style.display = 'block';
+      distanceLine.style.left = `${fromX - pad}px`;
+      distanceLine.style.top = `${lineY - pad}px`;
+      distanceLine.style.width = `${Math.abs(toX - fromX) + pad * 2}px`;
+      distanceLine.style.height = `${pad * 2}px`;
+      distanceLine.style.display = 'block';
+
+      distanceLine.innerHTML = `
+        <line x1="${pad}" y1="${pad}" x2="${Math.abs(toX - fromX) + pad}" y2="${pad}"
+              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <circle cx="${pad}" cy="${pad}" r="3" fill="#ff7675"/>
+        <circle cx="${Math.abs(toX - fromX) + pad}" cy="${pad}" r="3" fill="#ff7675"/>
+      `;
+
+      distanceLabel.textContent = `↔ ${hGap}px`;
+      distanceLabel.style.left = `${(fromX + toX) / 2}px`;
+      distanceLabel.style.top = `${lineY - 20}px`;
+      distanceLabel.style.transform = 'translateX(-50%)';
+      distanceLabel.style.display = 'block';
+
+    } else if (isVertical) {
+      // Вертикальная линия между краями элементов
+      const fromBottom = vGapTopToBottom > 0;
+      const lineX = (Math.max(rect1.left, rect2.left) + Math.min(rect1.right, rect2.right)) / 2;
+      const fromY = fromBottom ? rect1.bottom : rect2.bottom;
+      const toY = fromBottom ? rect2.top : rect1.top;
+
+      distanceLine.style.left = `${lineX - pad}px`;
+      distanceLine.style.top = `${fromY - pad}px`;
+      distanceLine.style.width = `${pad * 2}px`;
+      distanceLine.style.height = `${Math.abs(toY - fromY) + pad * 2}px`;
+      distanceLine.style.display = 'block';
+
+      distanceLine.innerHTML = `
+        <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${Math.abs(toY - fromY) + pad}"
+              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <circle cx="${pad}" cy="${pad}" r="3" fill="#ff7675"/>
+        <circle cx="${pad}" cy="${Math.abs(toY - fromY) + pad}" r="3" fill="#ff7675"/>
+      `;
+
+      distanceLabel.textContent = `↕ ${vGap}px`;
+      distanceLabel.style.left = `${lineX}px`;
+      distanceLabel.style.top = `${(fromY + toY) / 2}px`;
+      distanceLabel.style.transform = 'translate(-50%, -50%)';
+      distanceLabel.style.display = 'block';
+
+    } else {
+      // Элементы пересекаются — L-образные линии от центра к центру
+      const cx1 = rect1.left + rect1.width / 2;
+      const cy1 = rect1.top + rect1.height / 2;
+      const cx2 = rect2.left + rect2.width / 2;
+      const cy2 = rect2.top + rect2.height / 2;
+      const minX = Math.min(cx1, cx2);
+      const minY = Math.min(cy1, cy2);
+      const maxX = Math.max(cx1, cx2);
+      const maxY = Math.max(cy1, cy2);
+
+      distanceLine.style.left = `${minX - pad}px`;
+      distanceLine.style.top = `${minY - pad}px`;
+      distanceLine.style.width = `${maxX - minX + pad * 2}px`;
+      distanceLine.style.height = `${maxY - minY + pad * 2}px`;
+      distanceLine.style.display = 'block';
+
+      distanceLine.innerHTML = `
+        <line x1="${cx1 - minX + pad}" y1="${cy1 - minY + pad}"
+              x2="${cx2 - minX + pad}" y2="${cy1 - minY + pad}"
+              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <line x1="${cx2 - minX + pad}" y1="${cy1 - minY + pad}"
+              x2="${cx2 - minX + pad}" y2="${cy2 - minY + pad}"
+              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <circle cx="${cx1 - minX + pad}" cy="${cy1 - minY + pad}" r="3" fill="#ff7675"/>
+        <circle cx="${cx2 - minX + pad}" cy="${cy2 - minY + pad}" r="3" fill="#ff7675"/>
+      `;
+
+      distanceLabel.textContent = `↔ ${hGap}px  ↕ ${vGap}px`;
+      distanceLabel.style.left = `${(cx1 + cx2) / 2}px`;
+      distanceLabel.style.top = `${Math.min(cy1, cy2) - 24}px`;
+      distanceLabel.style.transform = 'translateX(-50%)';
+      distanceLabel.style.display = 'block';
+    }
   }
 
   // === Скрытие визуализации расстояния ===
@@ -397,10 +493,6 @@
 
     // Навигация по DOM через Ctrl + стрелки клавиатуры
     document.addEventListener('keydown', onKeyDown, true);
-
-    // Измерение расстояния: Alt + mousedown + mousemove + mouseup
-    document.addEventListener('mousedown', onMouseDownMeasure, true);
-    document.addEventListener('mouseup', onMouseUpMeasure, true);
   }
 
   // === Обработка движения мыши ===
@@ -408,26 +500,151 @@
   function onMouseMove(e) {
     if (!settings.extensionEnabled) return;
 
+    // Определяем элемент надёжно через точку на экране
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+
     // Если зажат Alt — измеряем расстояние
-    if (draggingElement) {
-      const target = document.elementFromPoint(e.clientX, e.clientY);
-      if (!target || target === draggingElement || target === document.body || target === document.documentElement) {
-        hideDistanceVisuals();
+    if (e.altKey) {
+      // Фиксируем первый элемент при первом движении с Alt
+      if (!measureFirstEl) {
+        if (target && target !== document.body && target !== document.documentElement &&
+            target !== highlightOverlay && target !== toastElement && target !== infoPanel &&
+            target !== marginOverlay && target !== paddingOverlay && target !== boxModelOverlay &&
+            target !== distanceLine && target !== distanceLabel && target !== secondOverlay) {
+          measureFirstEl = target;
+        }
         return;
       }
-      updateDistanceVisuals(draggingElement, target);
+
+      // Определяем край экрана для измерения
+      const edgeThreshold = 30; // px от края
+      const nearLeft = e.clientX < edgeThreshold;
+      const nearRight = e.clientX > window.innerWidth - edgeThreshold;
+      const nearTop = e.clientY < edgeThreshold;
+      const nearBottom = e.clientY > window.innerHeight - edgeThreshold;
+      const nearEdge = nearLeft || nearRight || nearTop || nearBottom;
+
+      // Если курсор у края экрана — показываем расстояние от края
+      if (nearEdge) {
+        hideDistanceVisuals();
+        updateSecondOverlay(null);
+
+        const rect1 = measureFirstEl.getBoundingClientRect();
+        const cx = e.clientX; // позиция курсора
+        const cy = e.clientY;
+
+        if (nearLeft) {
+          // Расстояние от левого края экрана до левого края элемента
+          const gap = Math.round(rect1.left);
+          const lineY = rect1.top + rect1.height / 2;
+          distanceLine.style.left = `0px`;
+          distanceLine.style.top = `${lineY - 15}px`;
+          distanceLine.style.width = `${Math.max(gap, 1) + 20}px`;
+          distanceLine.style.height = '30px';
+          distanceLine.style.display = 'block';
+          distanceLine.innerHTML = `
+            <line x1="0" y1="15" x2="${gap}" y2="15"
+                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <circle cx="0" cy="15" r="3" fill="#ff7675"/>
+            <circle cx="${gap}" cy="15" r="3" fill="#ff7675"/>
+          `;
+          distanceLabel.textContent = `↔ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
+          distanceLabel.style.left = `${gap / 2}px`;
+          distanceLabel.style.top = `${lineY - 20}px`;
+          distanceLabel.style.transform = 'translateX(-50%)';
+          distanceLabel.style.display = 'block';
+        } else if (nearRight) {
+          const gap = Math.round(window.innerWidth - rect1.right);
+          const lineY = rect1.top + rect1.height / 2;
+          const startX = rect1.right;
+          distanceLine.style.left = `${startX}px`;
+          distanceLine.style.top = `${lineY - 15}px`;
+          distanceLine.style.width = `${Math.max(gap, 1) + 10}px`;
+          distanceLine.style.height = '30px';
+          distanceLine.style.display = 'block';
+          distanceLine.innerHTML = `
+            <line x1="0" y1="15" x2="${gap}" y2="15"
+                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <circle cx="0" cy="15" r="3" fill="#ff7675"/>
+            <circle cx="${gap}" cy="15" r="3" fill="#ff7675"/>
+          `;
+          distanceLabel.textContent = `↔ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
+          distanceLabel.style.left = `${startX + gap / 2}px`;
+          distanceLabel.style.top = `${lineY - 20}px`;
+          distanceLabel.style.transform = 'translateX(-50%)';
+          distanceLabel.style.display = 'block';
+        } else if (nearTop) {
+          const gap = Math.round(rect1.top);
+          const lineX = rect1.left + rect1.width / 2;
+          distanceLine.style.left = `${lineX - 15}px`;
+          distanceLine.style.top = `0px`;
+          distanceLine.style.width = '30px';
+          distanceLine.style.height = `${Math.max(gap, 1) + 20}px`;
+          distanceLine.style.display = 'block';
+          distanceLine.innerHTML = `
+            <line x1="15" y1="0" x2="15" y2="${gap}"
+                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <circle cx="15" cy="0" r="3" fill="#ff7675"/>
+            <circle cx="15" cy="${gap}" r="3" fill="#ff7675"/>
+          `;
+          distanceLabel.textContent = `↕ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
+          distanceLabel.style.left = `${lineX}px`;
+          distanceLabel.style.top = `${gap / 2}px`;
+          distanceLabel.style.transform = 'translate(-50%, -50%)';
+          distanceLabel.style.display = 'block';
+        } else if (nearBottom) {
+          const gap = Math.round(window.innerHeight - rect1.bottom);
+          const lineX = rect1.left + rect1.width / 2;
+          distanceLine.style.left = `${lineX - 15}px`;
+          distanceLine.style.top = `${rect1.bottom}px`;
+          distanceLine.style.width = '30px';
+          distanceLine.style.height = `${Math.max(gap, 1) + 10}px`;
+          distanceLine.style.display = 'block';
+          distanceLine.innerHTML = `
+            <line x1="15" y1="0" x2="15" y2="${gap}"
+                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <circle cx="15" cy="0" r="3" fill="#ff7675"/>
+            <circle cx="15" cy="${gap}" r="3" fill="#ff7675"/>
+          `;
+          distanceLabel.textContent = `↕ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
+          distanceLabel.style.left = `${lineX}px`;
+          distanceLabel.style.top = `${rect1.bottom + gap / 2}px`;
+          distanceLabel.style.transform = 'translate(-50%, -50%)';
+          distanceLabel.style.display = 'block';
+        }
+        return;
+      }
+
+      // Второй элемент — показываем расстояние
+      if (target && target !== measureFirstEl &&
+          target !== document.body && target !== document.documentElement &&
+          target !== highlightOverlay && target !== toastElement &&
+          target !== infoPanel && target !== marginOverlay && target !== paddingOverlay &&
+          target !== boxModelOverlay && target !== distanceLine && target !== distanceLabel &&
+          target !== secondOverlay) {
+        updateSecondOverlay(target);
+        updateDistanceVisuals(measureFirstEl, target);
+      } else {
+        hideDistanceVisuals();
+        updateSecondOverlay(null);
+      }
       return;
+    }
+    // Alt не зажат — сбрасываем измерение
+    if (measureFirstEl) {
+      hideDistanceVisuals();
+      updateSecondOverlay(null);
+      measureFirstEl = null;
     }
 
     // Пропускаем если сработал Ctrl+Scroll (lockedSelection)
     if (lockedSelection) return;
 
     // Пропускаем служебные элементы
-    const target = e.target;
     if (!target || target === highlightOverlay || target === toastElement ||
         target === infoPanel || target === marginOverlay || target === paddingOverlay ||
         target === boxModelOverlay || target === distanceLine || target === distanceLabel ||
-        target === distancePanel) {
+        target === distancePanel || target === secondOverlay) {
       return;
     }
 
@@ -536,24 +753,17 @@
     }
   }
 
-  // === Измерение расстояния между элементами (Alt + mousedown + mousemove + mouseup) ===
-  function onMouseDownMeasure(e) {
-    if (!e.altKey || !settings.extensionEnabled) return;
+  // === Измерение расстояния между элементами (Alt + наведение) ===
+  let measureFirstEl = null; // Первый элемент (зафиксирован при Alt)
 
-    const target = e.target;
-    if (!target || target === highlightOverlay || target === toastElement || target === infoPanel ||
-        target === marginOverlay || target === paddingOverlay || target === boxModelOverlay ||
-        target === distanceLine || target === distanceLabel) return;
-    if (target === document.body || target === document.documentElement) return;
-
-    draggingElement = target;
-    e.preventDefault();
-  }
-
-  function onMouseUpMeasure() {
-    hideDistanceVisuals();
-    draggingElement = null;
-  }
+  // При отпускании Alt сбрасываем
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'Alt') {
+      hideDistanceVisuals();
+      updateSecondOverlay(null);
+      measureFirstEl = null;
+    }
+  }, true);
 
   // === Обработка клика ===
   function onClick(e) {
