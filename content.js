@@ -22,6 +22,7 @@
   let infoPanel = null;
   let toastElement = null;
   let settings = { ...DEFAULTS };
+  let lockedSelection = null; // Элемент, зафиксированный через Ctrl+Scroll (null = обычный режим наведения)
 
   // === Инициализация ===
   async function init() {
@@ -169,9 +170,93 @@
     // Отслеживание наведения на элементы
     document.addEventListener('mouseenter', onMouseEnter, true);
     document.addEventListener('mouseleave', onMouseLeave, true);
-    
+
     // Перехват кликов в фазе погружения
     document.addEventListener('click', onClick, true);
+
+    // Навигация по DOM через Ctrl + колесико мыши
+    document.addEventListener('wheel', onWheel, { capture: true, passive: false });
+
+    // Навигация по DOM через Ctrl + стрелки клавиатуры
+    document.addEventListener('keydown', onKeyDown, true);
+  }
+
+  // === Единая функция выбора элемента (подсветка + инфо-панель) ===
+  function selectElement(el) {
+    if (!el || el === document.body || el === document.documentElement) {
+      hideOverlay();
+      hideInfoPanel();
+      hoveredElement = null;
+      lockedSelection = null;
+      return;
+    }
+
+    hoveredElement = el;
+    updateOverlayPosition(el);
+    updateInfoPanel(el);
+    showOverlay();
+    showInfoPanel();
+  }
+
+  // === Навигация по DOM через Ctrl + Scroll ===
+  function onWheel(e) {
+    // Реагируем только на Ctrl + колесико
+    if (!e.ctrlKey && !e.metaKey) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!settings.extensionEnabled) return;
+
+    // Определяем текущий элемент: зафиксированный или под курсором
+    const current = lockedSelection || hoveredElement;
+    if (!current) return;
+
+    let next = null;
+
+    if (e.deltaY < 0) {
+      // Колесико ВВЕРХ — поднимаемся к родителю
+      next = current.parentElement;
+    } else {
+      // Колесико ВНИЗ — спускаемся к первому ребёнку или следующему соседу
+      next = current.firstElementChild || current.nextElementSibling;
+    }
+
+    if (next && next !== document.body && next !== document.documentElement) {
+      lockedSelection = next;
+      selectElement(next);
+    }
+  }
+
+  // === Навигация по DOM через Ctrl + стрелки клавиатуры ===
+  function onKeyDown(e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+
+    const key = e.key;
+    if (key !== 'ArrowUp' && key !== 'ArrowDown') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!settings.extensionEnabled) return;
+
+    const current = lockedSelection || hoveredElement;
+    if (!current) return;
+
+    let next = null;
+
+    if (key === 'ArrowUp') {
+      // Ctrl + ↑ — поднимаемся к родителю
+      next = current.parentElement;
+    } else {
+      // Ctrl + ↓ — спускаемся к первому ребёнку или следующему соседу
+      next = current.firstElementChild || current.nextElementSibling;
+    }
+
+    if (next && next !== document.body && next !== document.documentElement) {
+      lockedSelection = next;
+      selectElement(next);
+    }
   }
 
   // === Обработка mouseenter ===
@@ -184,6 +269,9 @@
     if (!target || target === highlightOverlay || target === toastElement || target === infoPanel) {
       return;
     }
+
+    // Обычное наведение сбрасывает ручной выбор (Ctrl+Scroll)
+    lockedSelection = null;
 
     // Игнорируем body и html
     if (target === document.body || target === document.documentElement) {
