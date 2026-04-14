@@ -8,7 +8,8 @@
       "Bash(copy *)",
       "Bash(tar *)",
       "Bash(dir *)",
-      "Bash(ren *)"
+      "Bash(ren *)",
+      "Bash(build.bat)"
     ]
   },
   "$version": 3

@@ -247,6 +247,39 @@
     document.documentElement.appendChild(distancePanel);
   }
 
+  // === Хелпер: безопасная очистка SVG и добавление элементов через DOM API ===
+  function setSVGContent(svgEl, elements) {
+    // Очищаем существующие дочерние элементы
+    while (svgEl.firstChild) {
+      svgEl.removeChild(svgEl.firstChild);
+    }
+    // Добавляем новые элементы
+    for (const el of elements) {
+      svgEl.appendChild(el);
+    }
+  }
+
+  function svgLine(x1, y1, x2, y2) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    el.setAttribute('x1', x1);
+    el.setAttribute('y1', y1);
+    el.setAttribute('x2', x2);
+    el.setAttribute('y2', y2);
+    el.setAttribute('stroke', '#ff7675');
+    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('stroke-dasharray', '4,3');
+    return el;
+  }
+
+  function svgCircle(cx, cy, r) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    el.setAttribute('cx', cx);
+    el.setAttribute('cy', cy);
+    el.setAttribute('r', r);
+    el.setAttribute('fill', '#ff7675');
+    return el;
+  }
+
   // === Визуализация расстояния между элементами (линия + метка) ===
   function createDistanceVisuals() {
     const baseStyle = `
@@ -324,12 +357,11 @@
       distanceLine.style.height = `${pad * 2}px`;
       distanceLine.style.display = 'block';
 
-      distanceLine.innerHTML = `
-        <line x1="${pad}" y1="${pad}" x2="${Math.abs(toX - fromX) + pad}" y2="${pad}"
-              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-        <circle cx="${pad}" cy="${pad}" r="3" fill="#ff7675"/>
-        <circle cx="${Math.abs(toX - fromX) + pad}" cy="${pad}" r="3" fill="#ff7675"/>
-      `;
+      setSVGContent(distanceLine, [
+        svgLine(pad, pad, Math.abs(toX - fromX) + pad, pad),
+        svgCircle(pad, pad, 3),
+        svgCircle(Math.abs(toX - fromX) + pad, pad, 3)
+      ]);
 
       distanceLabel.textContent = `↔ ${hGap}px`;
       distanceLabel.style.left = `${(fromX + toX) / 2}px`;
@@ -350,12 +382,11 @@
       distanceLine.style.height = `${Math.abs(toY - fromY) + pad * 2}px`;
       distanceLine.style.display = 'block';
 
-      distanceLine.innerHTML = `
-        <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${Math.abs(toY - fromY) + pad}"
-              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-        <circle cx="${pad}" cy="${pad}" r="3" fill="#ff7675"/>
-        <circle cx="${pad}" cy="${Math.abs(toY - fromY) + pad}" r="3" fill="#ff7675"/>
-      `;
+      setSVGContent(distanceLine, [
+        svgLine(pad, pad, pad, Math.abs(toY - fromY) + pad),
+        svgCircle(pad, pad, 3),
+        svgCircle(pad, Math.abs(toY - fromY) + pad, 3)
+      ]);
 
       distanceLabel.textContent = `↕ ${vGap}px`;
       distanceLabel.style.left = `${lineX}px`;
@@ -380,16 +411,12 @@
       distanceLine.style.height = `${maxY - minY + pad * 2}px`;
       distanceLine.style.display = 'block';
 
-      distanceLine.innerHTML = `
-        <line x1="${cx1 - minX + pad}" y1="${cy1 - minY + pad}"
-              x2="${cx2 - minX + pad}" y2="${cy1 - minY + pad}"
-              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-        <line x1="${cx2 - minX + pad}" y1="${cy1 - minY + pad}"
-              x2="${cx2 - minX + pad}" y2="${cy2 - minY + pad}"
-              stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-        <circle cx="${cx1 - minX + pad}" cy="${cy1 - minY + pad}" r="3" fill="#ff7675"/>
-        <circle cx="${cx2 - minX + pad}" cy="${cy2 - minY + pad}" r="3" fill="#ff7675"/>
-      `;
+      setSVGContent(distanceLine, [
+        svgLine(cx1 - minX + pad, cy1 - minY + pad, cx2 - minX + pad, cy1 - minY + pad),
+        svgLine(cx2 - minX + pad, cy1 - minY + pad, cx2 - minX + pad, cy2 - minY + pad),
+        svgCircle(cx1 - minX + pad, cy1 - minY + pad, 3),
+        svgCircle(cx2 - minX + pad, cy2 - minY + pad, 3)
+      ]);
 
       distanceLabel.textContent = `↔ ${hGap}px  ↕ ${vGap}px`;
       distanceLabel.style.left = `${(cx1 + cx2) / 2}px`;
@@ -542,12 +569,11 @@
           distanceLine.style.width = `${Math.max(gap, 1) + 20}px`;
           distanceLine.style.height = '30px';
           distanceLine.style.display = 'block';
-          distanceLine.innerHTML = `
-            <line x1="0" y1="15" x2="${gap}" y2="15"
-                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-            <circle cx="0" cy="15" r="3" fill="#ff7675"/>
-            <circle cx="${gap}" cy="15" r="3" fill="#ff7675"/>
-          `;
+          setSVGContent(distanceLine, [
+            svgLine(0, 15, gap, 15),
+            svgCircle(0, 15, 3),
+            svgCircle(gap, 15, 3)
+          ]);
           distanceLabel.textContent = `↔ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
           distanceLabel.style.left = `${gap / 2}px`;
           distanceLabel.style.top = `${lineY - 20}px`;
@@ -562,12 +588,11 @@
           distanceLine.style.width = `${Math.max(gap, 1) + 10}px`;
           distanceLine.style.height = '30px';
           distanceLine.style.display = 'block';
-          distanceLine.innerHTML = `
-            <line x1="0" y1="15" x2="${gap}" y2="15"
-                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-            <circle cx="0" cy="15" r="3" fill="#ff7675"/>
-            <circle cx="${gap}" cy="15" r="3" fill="#ff7675"/>
-          `;
+          setSVGContent(distanceLine, [
+            svgLine(0, 15, gap, 15),
+            svgCircle(0, 15, 3),
+            svgCircle(gap, 15, 3)
+          ]);
           distanceLabel.textContent = `↔ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
           distanceLabel.style.left = `${startX + gap / 2}px`;
           distanceLabel.style.top = `${lineY - 20}px`;
@@ -581,12 +606,11 @@
           distanceLine.style.width = '30px';
           distanceLine.style.height = `${Math.max(gap, 1) + 20}px`;
           distanceLine.style.display = 'block';
-          distanceLine.innerHTML = `
-            <line x1="15" y1="0" x2="15" y2="${gap}"
-                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-            <circle cx="15" cy="0" r="3" fill="#ff7675"/>
-            <circle cx="15" cy="${gap}" r="3" fill="#ff7675"/>
-          `;
+          setSVGContent(distanceLine, [
+            svgLine(15, 0, 15, gap),
+            svgCircle(15, 0, 3),
+            svgCircle(15, gap, 3)
+          ]);
           distanceLabel.textContent = `↕ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
           distanceLabel.style.left = `${lineX}px`;
           distanceLabel.style.top = `${gap / 2}px`;
@@ -600,12 +624,11 @@
           distanceLine.style.width = '30px';
           distanceLine.style.height = `${Math.max(gap, 1) + 10}px`;
           distanceLine.style.display = 'block';
-          distanceLine.innerHTML = `
-            <line x1="15" y1="0" x2="15" y2="${gap}"
-                  stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
-            <circle cx="15" cy="0" r="3" fill="#ff7675"/>
-            <circle cx="15" cy="${gap}" r="3" fill="#ff7675"/>
-          `;
+          setSVGContent(distanceLine, [
+            svgLine(15, 0, 15, gap),
+            svgCircle(15, 0, 3),
+            svgCircle(15, gap, 3)
+          ]);
           distanceLabel.textContent = `↕ ${gap}px (эл: ${Math.round(rect1.width)}×${Math.round(rect1.height)})`;
           distanceLabel.style.left = `${lineX}px`;
           distanceLabel.style.top = `${rect1.bottom + gap / 2}px`;
