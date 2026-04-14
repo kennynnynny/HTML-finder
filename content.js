@@ -1,20 +1,50 @@
 /**
  * HTML Copy on Hover - Content Script
- * Копирование HTML-разметки элементов по Ctrl+Click с визуальной подсветкой
+ * Копирование HTML-разметки элементов по клику с визуальной подсветкой
  */
 
 (function () {
   'use strict';
 
+  // === Настройки по умолчанию ===
+  const DEFAULTS = {
+    format: 'outerHTML',
+    trigger: 'ctrl',
+    showToast: true,
+    toastDuration: 2
+  };
+
   // === Состояние ===
   let hoveredElement = null;
   let highlightOverlay = null;
   let toastElement = null;
+  let settings = { ...DEFAULTS };
 
   // === Инициализация ===
-  function init() {
+  async function init() {
+    await loadSettings();
     createOverlay();
     attachEventListeners();
+    attachMessageListener();
+  }
+
+  // === Загрузка настроек из storage ===
+  async function loadSettings() {
+    try {
+      const result = await chrome.storage.local.get(DEFAULTS);
+      settings = { ...DEFAULTS, ...result };
+    } catch (e) {
+      console.warn('[HTML Copy] Не удалось загрузить настройки:', e);
+    }
+  }
+
+  // === Слушатель сообщений от popup ===
+  function attachMessageListener() {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === 'settingsUpdated') {
+        settings = { ...settings, ...message.settings };
+      }
+    });
   }
 
   // === Создание оверлея подсветки ===
@@ -76,12 +106,12 @@
 
   // === Обработка клика ===
   function onClick(e) {
-    // Проверяем модификатор Ctrl (Cmd на Mac)
-    if (!e.ctrlKey && !e.metaKey) {
+    // Проверка триггера
+    if (!isTriggerActive(e)) {
       return;
     }
 
-    // Предотвращаем стандартное поведение только при Ctrl+Click
+    // Предотвращаем стандартное поведение только при активном триггере
     e.preventDefault();
     e.stopPropagation();
 
@@ -90,18 +120,53 @@
       return;
     }
 
-    // Копируем outerHTML
-    const html = hoveredElement.outerHTML.trim();
-    
+    // Получаем HTML в выбранном формате
+    const html = getHtmlFromElement(hoveredElement);
+
     copyToClipboard(html)
       .then(() => {
-        showToast('✅ HTML скопирован', 'success');
+        if (settings.showToast) {
+          showToast('✅ HTML скопирован', 'success');
+        }
         hideOverlay();
       })
       .catch((err) => {
         console.error('Clipboard error:', err);
-        showToast('❌ Ошибка копирования', 'error');
+        if (settings.showToast) {
+          showToast('❌ Ошибка копирования', 'error');
+        }
       });
+  }
+
+  // === Проверка активного триггера ===
+  function isTriggerActive(e) {
+    switch (settings.trigger) {
+      case 'ctrl':
+        return e.ctrlKey || e.metaKey; // Ctrl или Cmd на Mac
+      case 'alt':
+        return e.altKey;
+      case 'shift':
+        return e.shiftKey;
+      case 'none':
+        return true; // Просто клик без модификаторов
+      default:
+        return e.ctrlKey || e.metaKey;
+    }
+  }
+
+  // === Получение HTML из элемента в выбранном формате ===
+  function getHtmlFromElement(element) {
+    switch (settings.format) {
+      case 'innerHTML':
+        return element.innerHTML.trim();
+      case 'attributes':
+        return Array.from(element.attributes || [])
+          .map(attr => `${attr.name}="${attr.value}"`)
+          .join(' ');
+      case 'outerHTML':
+      default:
+        return element.outerHTML.trim();
+    }
   }
 
   // === Обновление позиции оверлея ===
@@ -184,7 +249,8 @@
       toastElement.style.opacity = '1';
     });
 
-    // Автоматическое скрытие через 2 секунды
+    // Автоматическое скрытие через настроенную длительность
+    const duration = (settings.toastDuration || 2) * 1000; // сек → мс
     setTimeout(() => {
       if (toastElement) {
         toastElement.style.opacity = '0';
@@ -195,7 +261,7 @@
           }
         }, 200);
       }
-    }, 2000);
+    }, duration);
   }
 
   // === Запуск ===
