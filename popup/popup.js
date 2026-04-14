@@ -5,6 +5,8 @@ const DEFAULTS = {
   format: 'outerHTML',
   trigger: 'ctrl',
   showToast: true,
+  showInfoPanel: true,
+  panelPosition: 'top',
   extensionEnabled: true
 };
 
@@ -18,6 +20,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     triggerRadio.checked = true;
   }
   document.getElementById('showToast').checked = result.showToast;
+  document.getElementById('showInfoPanel').checked = result.showInfoPanel;
+  const panelPos = document.querySelector(`input[name="panelPosition"][value="${result.panelPosition}"]`);
+  if (panelPos) panelPos.checked = true;
   document.getElementById('extensionEnabled').checked = result.extensionEnabled;
 
   // Автосохранение при любом изменении
@@ -25,6 +30,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('format'),
     ...document.querySelectorAll('input[name="trigger"]'),
     document.getElementById('showToast'),
+    document.getElementById('showInfoPanel'),
+    ...document.querySelectorAll('input[name="panelPosition"]'),
     document.getElementById('extensionEnabled'),
   ];
 
@@ -39,6 +46,8 @@ async function saveSettings() {
     format: document.getElementById('format').value,
     trigger: document.querySelector('input[name="trigger"]:checked')?.value || 'ctrl',
     showToast: document.getElementById('showToast').checked,
+    showInfoPanel: document.getElementById('showInfoPanel').checked,
+    panelPosition: document.querySelector('input[name="panelPosition"]:checked')?.value || 'top',
     extensionEnabled: document.getElementById('extensionEnabled').checked
   };
 

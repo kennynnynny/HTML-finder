@@ -11,6 +11,8 @@
     format: 'outerHTML',
     trigger: 'ctrl',
     showToast: true,
+    showInfoPanel: true,
+    panelPosition: 'top',
     extensionEnabled: true
   };
 
@@ -45,8 +47,8 @@
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'settingsUpdated') {
         settings = { ...settings, ...message.settings };
-        // Скрыть UI если расширение отключено
-        if (!settings.extensionEnabled) {
+        // Скрыть UI если расширение отключено или панель отключена
+        if (!settings.extensionEnabled || !settings.showInfoPanel) {
           hideOverlay();
           hideInfoPanel();
           hoveredElement = null;
@@ -110,18 +112,49 @@
 
     infoPanel.textContent = getElementInfo(el);
 
-    // Позиционируем панель над элементом
-    const panelHeight = 24; // примерная высота панели
-    const top = rect.top + window.scrollY - panelHeight - 4; // 4px отступ над элементом
-    const left = rect.left + window.scrollX;
+    // Сначала сбрасываем позицию, чтобы получить реальные размеры панели
+    infoPanel.style.top = '';
+    infoPanel.style.left = '';
+    infoPanel.style.bottom = '';
 
-    infoPanel.style.top = `${top}px`;
+    const panelRect = infoPanel.getBoundingClientRect();
+    const panelW = panelRect.width;
+    const panelH = panelRect.height;
+    const gap = 4; // отступ от элемента
+    const viewportW = window.innerWidth;
+    const scrollY = window.scrollY;
+
+    // Горизонтальное позиционирование: центрируем по элементу, но не выходим за края
+    let left = rect.left + (rect.width - panelW) / 2;
+    // Ограничиваем левой и правой границей viewport
+    left = Math.max(4, Math.min(left, viewportW - panelW - 4));
     infoPanel.style.left = `${left}px`;
+
+    // Вертикальное позиционирование по настройке
+    if (settings.panelPosition === 'bottom') {
+      // Снизу от элемента
+      let top = rect.bottom + scrollY + gap;
+      // Если выходит за нижний край — показываем сверху
+      if (top + panelH > scrollY + window.innerHeight) {
+        top = rect.top + scrollY - panelH - gap;
+      }
+      infoPanel.style.top = `${top}px`;
+      infoPanel.style.bottom = 'auto';
+    } else {
+      // Сверху от элемента (по умолчанию)
+      let top = rect.top + scrollY - panelH - gap;
+      // Если выходит за верхний край — показываем снизу
+      if (top < scrollY) {
+        top = rect.bottom + scrollY + gap;
+      }
+      infoPanel.style.top = `${top}px`;
+      infoPanel.style.bottom = 'auto';
+    }
   }
 
   // === Показ информационной панели ===
   function showInfoPanel() {
-    if (!infoPanel) return;
+    if (!infoPanel || !settings.showInfoPanel) return;
     infoPanel.style.opacity = '1';
   }
 
@@ -238,6 +271,8 @@
         return Array.from(element.attributes || [])
           .map(attr => `${attr.name}="${attr.value}"`)
           .join(' ');
+      case 'styles':
+        return Array.from(element.classList || []).join(' ');
       case 'outerHTML':
       default:
         return element.outerHTML.trim();

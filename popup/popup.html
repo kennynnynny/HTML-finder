@@ -26,6 +26,7 @@
         <option value="outerHTML">Весь элемент (outerHTML)</option>
         <option value="innerHTML">Только содержимое (innerHTML)</option>
         <option value="attributes">Только атрибуты</option>
+        <option value="styles">Названия классов (classList)</option>
       </select>
     </section>
 
@@ -42,6 +43,19 @@
         <input type="checkbox" id="showToast">
         Показывать уведомление после копирования
       </label>
+    </section>
+
+    <section class="setting-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="showInfoPanel">
+        Показывать панель над элементом при наведении
+      </label>
+    </section>
+
+    <section class="setting-group">
+      <label>Позиция панели:</label>
+      <label class="radio-label"><input type="radio" name="panelPosition" value="top"> Сверху</label>
+      <label class="radio-label"><input type="radio" name="panelPosition" value="bottom"> Снизу</label>
     </section>
 
     <div id="status" class="status-message"></div>
