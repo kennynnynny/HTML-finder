@@ -5,7 +5,10 @@
       "Bash(del *)",
       "Bash(move *)",
       "Bash(rmdir *)",
-      "Bash(copy *)"
+      "Bash(copy *)",
+      "Bash(tar *)",
+      "Bash(dir *)",
+      "Bash(ren *)"
     ]
   },
   "$version": 3

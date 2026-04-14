@@ -16,7 +16,7 @@
       "32": "assets/icon-32.png"
     },
     "default_title": "Настройки HTML Copy on Hover",
-    "default_popup": "popup/popup.html"
+    "default_popup": "panel/index.html"
   },
   "content_scripts": [
     {

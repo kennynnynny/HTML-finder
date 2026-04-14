@@ -91,7 +91,7 @@
     }
   }
 
-  // === Слушатель сообщений от popup ===
+  // === Слушатель сообщений от panel ===
   function attachMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'settingsUpdated') {

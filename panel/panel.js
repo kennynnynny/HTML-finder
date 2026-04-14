@@ -1,4 +1,4 @@
-// popup/popup.js
+// panel/panel.js
 'use strict';
 
 const DEFAULTS = {
@@ -10,7 +10,7 @@ const DEFAULTS = {
   extensionEnabled: true
 };
 
-// Загрузка настроек при открытии popup
+// Загрузка настроек при открытии panel
 document.addEventListener('DOMContentLoaded', async () => {
   const result = await chrome.storage.local.get(DEFAULTS);
 
