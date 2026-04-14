@@ -17,6 +17,7 @@
   // === Состояние ===
   let hoveredElement = null;
   let highlightOverlay = null;
+  let infoPanel = null;
   let toastElement = null;
   let settings = { ...DEFAULTS };
 
@@ -24,6 +25,7 @@
   async function init() {
     await loadSettings();
     createOverlay();
+    createInfoPanel();
     attachEventListeners();
     attachMessageListener();
   }
@@ -64,6 +66,59 @@
     document.documentElement.appendChild(highlightOverlay);
   }
 
+  // === Создание информационной панели ===
+  function createInfoPanel() {
+    infoPanel = document.createElement('div');
+    infoPanel.id = 'html-copy-hover-info-panel';
+    Object.assign(infoPanel.style, {
+      position: 'fixed',
+      top: '12px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      background: '#fff9e6',
+      color: '#333',
+      fontFamily: 'monospace, system-ui, sans-serif',
+      fontSize: '13px',
+      padding: '6px 12px',
+      borderRadius: '6px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+      pointerEvents: 'none',
+      zIndex: '2147483647',
+      opacity: '0',
+      transition: 'opacity 0.15s ease, transform 0.15s ease',
+      whiteSpace: 'nowrap',
+    });
+    document.documentElement.appendChild(infoPanel);
+  }
+
+  // === Получение информации об элементе для панели ===
+  function getElementInfo(el) {
+    const tag = el.tagName.toLowerCase();
+    const rect = el.getBoundingClientRect();
+    const size = `${Math.round(rect.width)} × ${Math.round(rect.height)}`;
+    const id = el.id ? `#${el.id}` : '—';
+    const classes = el.classList.length ? `.${[...el.classList].join(' .')}` : '—';
+    return `[ ${tag} ]  ${size}  |  ${id}  |  ${classes}`;
+  }
+
+  // === Обновление содержимого панели ===
+  function updateInfoPanel(el) {
+    if (!infoPanel || !el) return;
+    infoPanel.textContent = getElementInfo(el);
+  }
+
+  // === Показ информационной панели ===
+  function showInfoPanel() {
+    if (!infoPanel) return;
+    infoPanel.style.opacity = '1';
+  }
+
+  // === Скрытие информационной панели ===
+  function hideInfoPanel() {
+    if (!infoPanel) return;
+    infoPanel.style.opacity = '0';
+  }
+
   // === Привязка слушателей событий ===
   function attachEventListeners() {
     // Отслеживание наведения на элементы
@@ -77,22 +132,25 @@
   // === Обработка mouseenter ===
   function onMouseEnter(e) {
     const target = e.target;
-    
+
     // Игнорируем служебные элементы
-    if (!target || target === highlightOverlay || target === toastElement) {
+    if (!target || target === highlightOverlay || target === toastElement || target === infoPanel) {
       return;
     }
 
     // Игнорируем body и html
     if (target === document.body || target === document.documentElement) {
       hideOverlay();
+      hideInfoPanel();
       hoveredElement = null;
       return;
     }
 
     hoveredElement = target;
     updateOverlayPosition(target);
+    updateInfoPanel(target);
     showOverlay();
+    showInfoPanel();
   }
 
   // === Обработка mouseleave ===
@@ -100,6 +158,7 @@
     // Проверяем, что курсор покинул hoveredElement
     if (e.target === hoveredElement) {
       hideOverlay();
+      hideInfoPanel();
       hoveredElement = null;
     }
   }
