@@ -11,7 +11,6 @@
     format: 'outerHTML',
     trigger: 'ctrl',
     showToast: true,
-    toastDuration: 2,
     extensionEnabled: true
   };
 
@@ -325,8 +324,7 @@
       toastElement.style.opacity = '1';
     });
 
-    // Автоматическое скрытие через настроенную длительность
-    const duration = (settings.toastDuration || 2) * 1000; // сек → мс
+    // Автоматическое скрытие через 2 секунды
     setTimeout(() => {
       if (toastElement) {
         toastElement.style.opacity = '0';
@@ -337,7 +335,7 @@
           }
         }, 200);
       }
-    }, duration);
+    }, 2000);
   }
 
   // === Запуск ===

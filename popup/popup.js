@@ -5,7 +5,6 @@ const DEFAULTS = {
   format: 'outerHTML',
   trigger: 'ctrl',
   showToast: true,
-  toastDuration: 2,
   extensionEnabled: true
 };
 
@@ -19,45 +18,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     triggerRadio.checked = true;
   }
   document.getElementById('showToast').checked = result.showToast;
-  document.getElementById('toastDuration').value = result.toastDuration;
   document.getElementById('extensionEnabled').checked = result.extensionEnabled;
+
+  // Автосохранение при любом изменении
+  const inputs = [
+    document.getElementById('format'),
+    ...document.querySelectorAll('input[name="trigger"]'),
+    document.getElementById('showToast'),
+    document.getElementById('extensionEnabled'),
+  ];
+
+  inputs.forEach(input => {
+    input.addEventListener('change', saveSettings);
+  });
 });
 
-// Сохранение настроек
-document.getElementById('saveBtn').addEventListener('click', async () => {
+// Сбор и сохранение настроек
+async function saveSettings() {
   const settings = {
     format: document.getElementById('format').value,
     trigger: document.querySelector('input[name="trigger"]:checked')?.value || 'ctrl',
     showToast: document.getElementById('showToast').checked,
-    toastDuration: parseInt(document.getElementById('toastDuration').value, 10) || 2,
     extensionEnabled: document.getElementById('extensionEnabled').checked
   };
 
   await chrome.storage.local.set(settings);
+  showStatus('✅ Сохранено', 'success');
 
-  // Уведомление в popup
-  showStatus('✅ Настройки сохранены!', 'success');
-
-  // Уведомить content script об изменении (для мгновенного применения)
+  // Уведомить content script об изменении
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.id) {
       chrome.tabs.sendMessage(tab.id, { action: 'settingsUpdated', settings }).catch(() => {});
     }
   } catch (e) {
-    // Игнорируем ошибки отправки сообщения
+    // Игнорируем ошибки отправки
   }
-});
+}
 
-// Сброс к настройкам по умолчанию
-document.getElementById('resetBtn').addEventListener('click', async () => {
-  await chrome.storage.local.clear();
-  await chrome.storage.local.set(DEFAULTS);
-  // Перезагружаем popup с дефолтными значениями
-  window.location.reload();
-});
-
-// Вспомогательная функция
 function showStatus(message, type) {
   const el = document.getElementById('status');
   el.textContent = message;
@@ -65,5 +63,5 @@ function showStatus(message, type) {
   setTimeout(() => {
     el.textContent = '';
     el.className = 'status-message';
-  }, 2000);
+  }, 1500);
 }
