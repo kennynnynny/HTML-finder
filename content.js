@@ -20,15 +20,29 @@
   let hoveredElement = null;
   let highlightOverlay = null;
   let infoPanel = null;
+  let distancePanel = null; // Панель расстояния между элементами
   let toastElement = null;
   let settings = { ...DEFAULTS };
   let lockedSelection = null; // Элемент, зафиксированный через Ctrl+Scroll (null = обычный режим наведения)
+  let draggingElement = null; // Элемент, с которого начали измерение расстояния
+
+  // Box Model оверлеи (визуализация margin/padding)
+  let boxModelOverlay = null;
+  let marginOverlay = null;
+  let paddingOverlay = null;
+
+  // Визуализация расстояния между элементами
+  let distanceLine = null;
+  let distanceLabel = null;
 
   // === Инициализация ===
   async function init() {
     await loadSettings();
     createOverlay();
     createInfoPanel();
+    createDistancePanel();
+    createBoxModelOverlays();
+    createDistanceVisuals();
     attachEventListeners();
     attachMessageListener();
   }
@@ -65,14 +79,95 @@
     highlightOverlay.style.cssText = `
       position: fixed;
       pointer-events: none;
-      border: 2px solid #4A90E2;
-      background: rgba(74, 144, 226, 0.1);
-      border-radius: 4px;
+      border: 2px solid #00d4ff;
+      background: rgba(0, 212, 255, 0.08);
+      border-radius: 2px;
       z-index: 2147483647;
+      display: none;
+      box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3);
+    `;
+    document.documentElement.appendChild(highlightOverlay);
+  }
+
+  // === Box Model оверлеи (визуализация margin/padding) ===
+  function createBoxModelOverlays() {
+    // Базовый стиль для всех box model слоёв
+    const baseStyle = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 2147483646;
       display: none;
       transition: opacity 0.1s ease;
     `;
-    document.documentElement.appendChild(highlightOverlay);
+
+    // Margin — яркий оранжевый
+    marginOverlay = document.createElement('div');
+    marginOverlay.id = 'html-copy-hover-margin';
+    marginOverlay.style.cssText = baseStyle + 'background: rgba(255, 120, 0, 0.4); border: 1px solid rgba(255, 120, 0, 0.8);';
+    document.documentElement.appendChild(marginOverlay);
+
+    // Padding — яркий зелёный
+    paddingOverlay = document.createElement('div');
+    paddingOverlay.id = 'html-copy-hover-padding';
+    paddingOverlay.style.cssText = baseStyle + 'background: rgba(0, 180, 0, 0.35); border: 1px solid rgba(0, 180, 0, 0.7);';
+    document.documentElement.appendChild(paddingOverlay);
+
+    // Content — яркий синий
+    boxModelOverlay = document.createElement('div');
+    boxModelOverlay.id = 'html-copy-hover-content';
+    boxModelOverlay.style.cssText = baseStyle + 'background: rgba(0, 120, 255, 0.2); border: 2px solid rgba(0, 120, 255, 0.8);';
+    document.documentElement.appendChild(boxModelOverlay);
+  }
+
+  // === Обновление box model оверлеев ===
+  function updateBoxModel(el) {
+    if (!el || el === document.body || el === document.documentElement) {
+      marginOverlay.style.display = 'none';
+      paddingOverlay.style.display = 'none';
+      boxModelOverlay.style.display = 'none';
+      return;
+    }
+
+    const cs = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+
+    const mt = parseInt(cs.marginTop) || 0;
+    const mr = parseInt(cs.marginRight) || 0;
+    const mb = parseInt(cs.marginBottom) || 0;
+    const ml = parseInt(cs.marginLeft) || 0;
+
+    const pt = parseInt(cs.paddingTop) || 0;
+    const pr = parseInt(cs.paddingRight) || 0;
+    const pb = parseInt(cs.paddingBottom) || 0;
+    const pl = parseInt(cs.paddingLeft) || 0;
+
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    // Margin box: размер = rect + margin
+    const marginW = rect.width + ml + mr;
+    const marginH = rect.height + mt + mb;
+    marginOverlay.style.top = `${rect.top + scrollY - mt}px`;
+    marginOverlay.style.left = `${rect.left + scrollX - ml}px`;
+    marginOverlay.style.width = `${marginW}px`;
+    marginOverlay.style.height = `${marginH}px`;
+    marginOverlay.style.display = 'block';
+
+    // Padding box: начинается от края rect, размер = rect.width/height
+    paddingOverlay.style.top = `${rect.top + scrollY}px`;
+    paddingOverlay.style.left = `${rect.left + scrollX}px`;
+    paddingOverlay.style.width = `${rect.width}px`;
+    paddingOverlay.style.height = `${rect.height}px`;
+    paddingOverlay.style.display = 'block';
+
+    // Content box: rect минус padding
+    const contentW = rect.width - pl - pr;
+    const contentH = rect.height - pt - pb;
+    boxModelOverlay.style.top = `${rect.top + scrollY + pt}px`;
+    boxModelOverlay.style.left = `${rect.left + scrollX + pl}px`;
+    boxModelOverlay.style.width = `${contentW}px`;
+    boxModelOverlay.style.height = `${contentH}px`;
+    boxModelOverlay.style.display = 'block';
   }
 
   // === Создание информационной панели ===
@@ -95,6 +190,124 @@
       whiteSpace: 'nowrap',
     });
     document.documentElement.appendChild(infoPanel);
+  }
+
+  // === Создание панели расстояния ===
+  function createDistancePanel() {
+    distancePanel = document.createElement('div');
+    distancePanel.id = 'html-copy-hover-distance-panel';
+    Object.assign(distancePanel.style, {
+      position: 'fixed',
+      background: '#ffeaa7',
+      color: '#333',
+      fontFamily: 'monospace, system-ui, sans-serif',
+      fontSize: '12px',
+      padding: '4px 10px',
+      borderRadius: '4px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+      pointerEvents: 'none',
+      zIndex: '2147483647',
+      opacity: '0',
+      transition: 'opacity 0.1s ease',
+      whiteSpace: 'nowrap',
+    });
+    document.documentElement.appendChild(distancePanel);
+  }
+
+  // === Визуализация расстояния между элементами (линия + метка) ===
+  function createDistanceVisuals() {
+    const baseStyle = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 2147483647;
+      display: none;
+    `;
+
+    // Линия — SVG элемент
+    distanceLine = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    distanceLine.id = 'html-copy-hover-distance-line';
+    distanceLine.style.cssText = baseStyle;
+    Object.assign(distanceLine.style, {
+      overflow: 'visible',
+    });
+    document.documentElement.appendChild(distanceLine);
+
+    // Метка расстояния
+    distanceLabel = document.createElement('div');
+    distanceLabel.id = 'html-copy-hover-distance-label';
+    Object.assign(distanceLabel.style, {
+      position: 'fixed',
+      pointerEvents: 'none',
+      zIndex: '2147483647',
+      display: 'none',
+      background: '#ff4444',
+      color: 'white',
+      fontFamily: 'monospace, system-ui, sans-serif',
+      fontSize: '11px',
+      fontWeight: '700',
+      padding: '2px 6px',
+      borderRadius: '3px',
+      whiteSpace: 'nowrap',
+      transform: 'translate(-50%, -50%)',
+    });
+    document.documentElement.appendChild(distanceLabel);
+  }
+
+  // === Обновление визуализации расстояния ===
+  function updateDistanceVisuals(el1, el2) {
+    if (!el1 || !el2 || !distanceLine || !distanceLabel) {
+      distanceLine.style.display = 'none';
+      distanceLabel.style.display = 'none';
+      return;
+    }
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+
+    // Центры элементов
+    const x1 = rect1.left + rect1.width / 2;
+    const y1 = rect1.top + rect1.height / 2;
+    const x2 = rect2.left + rect2.width / 2;
+    const y2 = rect2.top + rect2.height / 2;
+
+    // Расстояние между центрами
+    const dist = Math.round(Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2));
+
+    // Настраиваем SVG
+    const minX = Math.min(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxX = Math.max(x1, x2);
+    const maxY = Math.max(y1, y2);
+    const padding = 10;
+
+    distanceLine.style.left = `${minX - padding}px`;
+    distanceLine.style.top = `${minY - padding}px`;
+    distanceLine.style.width = `${maxX - minX + padding * 2}px`;
+    distanceLine.style.height = `${maxY - minY + padding * 2}px`;
+    distanceLine.style.display = 'block';
+
+    // Линия
+    distanceLine.innerHTML = `
+      <line x1="${x1 - minX + padding}" y1="${y1 - minY + padding}" 
+            x2="${x2 - minX + padding}" y2="${y2 - minY + padding}" 
+            stroke="#ff4444" stroke-width="2" stroke-dasharray="4,3"/>
+      <circle cx="${x1 - minX + padding}" cy="${y1 - minY + padding}" r="4" fill="#ff4444"/>
+      <circle cx="${x2 - minX + padding}" cy="${y2 - minY + padding}" r="4" fill="#ff4444"/>
+    `;
+
+    // Метка посередине
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    distanceLabel.textContent = `${dist}px`;
+    distanceLabel.style.left = `${midX}px`;
+    distanceLabel.style.top = `${midY - 16}px`;
+    distanceLabel.style.display = 'block';
+  }
+
+  // === Скрытие визуализации расстояния ===
+  function hideDistanceVisuals() {
+    if (distanceLine) distanceLine.style.display = 'none';
+    if (distanceLabel) distanceLabel.style.display = 'none';
   }
 
   // === Получение информации об элементе для панели ===
@@ -165,6 +378,13 @@
     infoPanel.style.opacity = '0';
   }
 
+  // === Скрытие box model оверлеев ===
+  function hideBoxModel() {
+    if (marginOverlay) marginOverlay.style.display = 'none';
+    if (paddingOverlay) paddingOverlay.style.display = 'none';
+    if (boxModelOverlay) boxModelOverlay.style.display = 'none';
+  }
+
   // === Привязка слушателей событий ===
   function attachEventListeners() {
     // Отслеживание наведения на элементы
@@ -179,13 +399,19 @@
 
     // Навигация по DOM через Ctrl + стрелки клавиатуры
     document.addEventListener('keydown', onKeyDown, true);
+
+    // Измерение расстояния: Alt + mousedown + mousemove + mouseup
+    document.addEventListener('mousedown', onMouseDown, true);
+    document.addEventListener('mousemove', onMouseMoveForDistance, true);
+    document.addEventListener('mouseup', onMouseUp, true);
   }
 
-  // === Единая функция выбора элемента (подсветка + инфо-панель) ===
+  // === Единая функция выбора элемента (подсветка + инфо-панель + box model) ===
   function selectElement(el) {
     if (!el || el === document.body || el === document.documentElement) {
       hideOverlay();
       hideInfoPanel();
+      hideBoxModel();
       hoveredElement = null;
       lockedSelection = null;
       return;
@@ -194,6 +420,7 @@
     hoveredElement = el;
     updateOverlayPosition(el);
     updateInfoPanel(el);
+    updateBoxModel(el);
     showOverlay();
     showInfoPanel();
   }
@@ -259,6 +486,35 @@
     }
   }
 
+  // === Измерение расстояния между элементами (Alt + мousedown + наведение) ===
+  function onMouseDown(e) {
+    if (!e.altKey || !settings.extensionEnabled) return;
+
+    const target = e.target;
+    if (!target || target === highlightOverlay || target === toastElement || target === infoPanel || target === distancePanel) return;
+    if (target === document.body || target === document.documentElement) return;
+
+    draggingElement = target;
+    e.preventDefault();
+  }
+
+  function onMouseMoveForDistance(e) {
+    if (!draggingElement) return;
+
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (!target || target === draggingElement || target === document.body || target === document.documentElement) {
+      hideDistanceVisuals();
+      return;
+    }
+
+    updateDistanceVisuals(draggingElement, target);
+  }
+
+  function onMouseUp() {
+    hideDistanceVisuals();
+    draggingElement = null;
+  }
+
   // === Обработка mouseenter ===
   function onMouseEnter(e) {
     if (!settings.extensionEnabled) return;
@@ -284,6 +540,7 @@
     hoveredElement = target;
     updateOverlayPosition(target);
     updateInfoPanel(target);
+    updateBoxModel(target);
     showOverlay();
     showInfoPanel();
   }
@@ -294,6 +551,7 @@
     if (e.target === hoveredElement) {
       hideOverlay();
       hideInfoPanel();
+      hideBoxModel();
       hoveredElement = null;
     }
   }
