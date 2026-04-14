@@ -5,7 +5,8 @@ const DEFAULTS = {
   format: 'outerHTML',
   trigger: 'ctrl',
   showToast: true,
-  toastDuration: 2
+  toastDuration: 2,
+  extensionEnabled: true
 };
 
 // Загрузка настроек при открытии popup
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   document.getElementById('showToast').checked = result.showToast;
   document.getElementById('toastDuration').value = result.toastDuration;
+  document.getElementById('extensionEnabled').checked = result.extensionEnabled;
 });
 
 // Сохранение настроек
@@ -27,7 +29,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     format: document.getElementById('format').value,
     trigger: document.querySelector('input[name="trigger"]:checked')?.value || 'ctrl',
     showToast: document.getElementById('showToast').checked,
-    toastDuration: parseInt(document.getElementById('toastDuration').value, 10) || 2
+    toastDuration: parseInt(document.getElementById('toastDuration').value, 10) || 2,
+    extensionEnabled: document.getElementById('extensionEnabled').checked
   };
 
   await chrome.storage.local.set(settings);

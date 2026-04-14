@@ -11,7 +11,8 @@
     format: 'outerHTML',
     trigger: 'ctrl',
     showToast: true,
-    toastDuration: 2
+    toastDuration: 2,
+    extensionEnabled: true
   };
 
   // === Состояние ===
@@ -45,6 +46,12 @@
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'settingsUpdated') {
         settings = { ...settings, ...message.settings };
+        // Скрыть UI если расширение отключено
+        if (!settings.extensionEnabled) {
+          hideOverlay();
+          hideInfoPanel();
+          hoveredElement = null;
+        }
       }
     });
   }
@@ -72,20 +79,17 @@
     infoPanel.id = 'html-copy-hover-info-panel';
     Object.assign(infoPanel.style, {
       position: 'fixed',
-      top: '12px',
-      left: '50%',
-      transform: 'translateX(-50%)',
       background: '#fff9e6',
       color: '#333',
       fontFamily: 'monospace, system-ui, sans-serif',
-      fontSize: '13px',
-      padding: '6px 12px',
-      borderRadius: '6px',
+      fontSize: '12px',
+      padding: '4px 10px',
+      borderRadius: '4px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       pointerEvents: 'none',
       zIndex: '2147483647',
       opacity: '0',
-      transition: 'opacity 0.15s ease, transform 0.15s ease',
+      transition: 'opacity 0.15s ease',
       whiteSpace: 'nowrap',
     });
     document.documentElement.appendChild(infoPanel);
@@ -93,18 +97,27 @@
 
   // === Получение информации об элементе для панели ===
   function getElementInfo(el) {
-    const tag = el.tagName.toLowerCase();
     const rect = el.getBoundingClientRect();
     const size = `${Math.round(rect.width)} × ${Math.round(rect.height)}`;
-    const id = el.id ? `#${el.id}` : '—';
     const classes = el.classList.length ? `.${[...el.classList].join(' .')}` : '—';
-    return `[ ${tag} ]  ${size}  |  ${id}  |  ${classes}`;
+    return `${size}  |  ${classes}`;
   }
 
-  // === Обновление содержимого панели ===
+  // === Обновление содержимого и позиции панели ===
   function updateInfoPanel(el) {
     if (!infoPanel || !el) return;
+
+    const rect = el.getBoundingClientRect();
+
     infoPanel.textContent = getElementInfo(el);
+
+    // Позиционируем панель над элементом
+    const panelHeight = 24; // примерная высота панели
+    const top = rect.top + window.scrollY - panelHeight - 4; // 4px отступ над элементом
+    const left = rect.left + window.scrollX;
+
+    infoPanel.style.top = `${top}px`;
+    infoPanel.style.left = `${left}px`;
   }
 
   // === Показ информационной панели ===
@@ -131,6 +144,8 @@
 
   // === Обработка mouseenter ===
   function onMouseEnter(e) {
+    if (!settings.extensionEnabled) return;
+
     const target = e.target;
 
     // Игнорируем служебные элементы
@@ -165,6 +180,8 @@
 
   // === Обработка клика ===
   function onClick(e) {
+    if (!settings.extensionEnabled) return;
+
     // Проверка триггера
     if (!isTriggerActive(e)) {
       return;
