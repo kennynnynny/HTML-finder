@@ -48,8 +48,6 @@
 
 <div align="center">
 
-![Настройки](screenshots/popup.png)
-
 </div>
 
 | Параметр | Варианты | По умолчанию |
