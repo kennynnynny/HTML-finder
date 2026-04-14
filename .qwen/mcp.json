@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "better-auth-better-icons": {
+      "command": "npx",
+      "args": ["-y", "better-icons"]
+    }
+  }
+}
