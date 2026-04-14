@@ -3,60 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Настройки</title>
+  <title>HTML Copy on Hover</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <img src="../assets/icon-32.png" alt="Иконка" class="icon">
-      <h1>Настройки</h1>
+      <img src="../assets/icon-32.png" alt="" class="icon">
+      <h1>HTML Copy on Hover</h1>
     </header>
 
-    <section class="setting-group">
-      <label class="checkbox-label">
-        <input type="checkbox" id="extensionEnabled">
-        🔌 Расширение включено
+    <div class="toggle-row">
+      <label class="switch-label">
+        <div class="switch">
+          <input type="checkbox" id="extensionEnabled">
+          <span class="slider"></span>
+        </div>
+        <span class="switch-text">Включено</span>
       </label>
-    </section>
+    </div>
 
-    <section class="setting-group">
-      <label for="format">Формат копирования:</label>
+    <div class="divider"></div>
+
+    <div class="setting-row">
+      <span class="row-label">Формат</span>
       <select id="format">
-        <option value="outerHTML">Весь элемент (outerHTML)</option>
-        <option value="innerHTML">Только содержимое (innerHTML)</option>
-        <option value="attributes">Только атрибуты</option>
-        <option value="styles">Названия классов (classList)</option>
+        <option value="outerHTML">outerHTML</option>
+        <option value="innerHTML">innerHTML</option>
+        <option value="attributes">Атрибуты</option>
+        <option value="styles">Классы</option>
       </select>
-    </section>
+    </div>
 
-    <section class="setting-group">
-      <label>Триггер копирования:</label>
-      <label class="radio-label"><input type="radio" name="trigger" value="ctrl"> Ctrl + Click</label>
-      <label class="radio-label"><input type="radio" name="trigger" value="alt"> Alt + Click</label>
-      <label class="radio-label"><input type="radio" name="trigger" value="shift"> Shift + Click</label>
-      <label class="radio-label"><input type="radio" name="trigger" value="none"> Просто клик</label>
-    </section>
+    <div class="setting-row">
+      <span class="row-label">Триггер</span>
+      <div class="trigger-grid">
+        <label class="trigger-btn"><input type="radio" name="trigger" value="ctrl"> Ctrl</label>
+        <label class="trigger-btn"><input type="radio" name="trigger" value="alt"> Alt</label>
+        <label class="trigger-btn"><input type="radio" name="trigger" value="shift"> Shift</label>
+        <label class="trigger-btn"><input type="radio" name="trigger" value="none"> Без</label>
+      </div>
+    </div>
 
-    <section class="setting-group">
-      <label class="checkbox-label">
-        <input type="checkbox" id="showToast">
-        Показывать уведомление после копирования
+    <div class="divider"></div>
+
+    <div class="setting-row">
+      <span class="row-label">Уведомления</span>
+      <label class="switch-label small">
+        <div class="switch">
+          <input type="checkbox" id="showToast">
+          <span class="slider"></span>
+        </div>
       </label>
-    </section>
+    </div>
 
-    <section class="setting-group">
-      <label class="checkbox-label">
-        <input type="checkbox" id="showInfoPanel">
-        Показывать панель над элементом при наведении
+    <div class="setting-row">
+      <span class="row-label">Инфо-панель</span>
+      <label class="switch-label small">
+        <div class="switch">
+          <input type="checkbox" id="showInfoPanel">
+          <span class="slider"></span>
+        </div>
       </label>
-    </section>
+    </div>
 
-    <section class="setting-group">
-      <label>Позиция панели:</label>
-      <label class="radio-label"><input type="radio" name="panelPosition" value="top"> Сверху</label>
-      <label class="radio-label"><input type="radio" name="panelPosition" value="bottom"> Снизу</label>
-    </section>
+    <div class="setting-row">
+      <span class="row-label">Позиция</span>
+      <div class="trigger-grid two-col">
+        <label class="trigger-btn"><input type="radio" name="panelPosition" value="top"> ↕ Сверху</label>
+        <label class="trigger-btn"><input type="radio" name="panelPosition" value="bottom"> ↕ Снизу</label>
+      </div>
+    </div>
 
     <div id="status" class="status-message"></div>
   </div>
