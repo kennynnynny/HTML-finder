@@ -4,7 +4,8 @@
       "Bash(node *)",
       "Bash(del *)",
       "Bash(move *)",
-      "Bash(rmdir *)"
+      "Bash(rmdir *)",
+      "Bash(copy *)"
     ]
   },
   "$version": 3
