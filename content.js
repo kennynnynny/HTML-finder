@@ -79,12 +79,12 @@
     highlightOverlay.style.cssText = `
       position: fixed;
       pointer-events: none;
-      border: 2px solid #00d4ff;
-      background: rgba(0, 212, 255, 0.08);
-      border-radius: 2px;
+      border: 0.5px solid rgba(78, 205, 196, 0.9);
+      background: rgba(78, 205, 196, 0.05);
+      border-radius: 0;
       z-index: 2147483647;
       display: none;
-      box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.3);
+      box-shadow: 0 0 0 0.5px rgba(78, 205, 196, 0.15);
     `;
     document.documentElement.appendChild(highlightOverlay);
   }
@@ -100,22 +100,22 @@
       transition: opacity 0.1s ease;
     `;
 
-    // Margin — яркий оранжевый
+    // Margin — мягкий коралловый
     marginOverlay = document.createElement('div');
     marginOverlay.id = 'html-copy-hover-margin';
-    marginOverlay.style.cssText = baseStyle + 'background: rgba(255, 120, 0, 0.4); border: 1px solid rgba(255, 120, 0, 0.8);';
+    marginOverlay.style.cssText = baseStyle + 'background: rgba(255, 154, 139, 0.25); border: 1px solid rgba(255, 154, 139, 0.5);';
     document.documentElement.appendChild(marginOverlay);
 
-    // Padding — яркий зелёный
+    // Padding — мягкий мятный
     paddingOverlay = document.createElement('div');
     paddingOverlay.id = 'html-copy-hover-padding';
-    paddingOverlay.style.cssText = baseStyle + 'background: rgba(0, 180, 0, 0.35); border: 1px solid rgba(0, 180, 0, 0.7);';
+    paddingOverlay.style.cssText = baseStyle + 'background: rgba(130, 214, 178, 0.25); border: 1px solid rgba(130, 214, 178, 0.5);';
     document.documentElement.appendChild(paddingOverlay);
 
-    // Content — яркий синий
+    // Content — мягкий лавандовый
     boxModelOverlay = document.createElement('div');
     boxModelOverlay.id = 'html-copy-hover-content';
-    boxModelOverlay.style.cssText = baseStyle + 'background: rgba(0, 120, 255, 0.2); border: 2px solid rgba(0, 120, 255, 0.8);';
+    boxModelOverlay.style.cssText = baseStyle + 'background: rgba(170, 160, 230, 0.18); border: 1px solid rgba(170, 160, 230, 0.55);';
     document.documentElement.appendChild(boxModelOverlay);
   }
 
@@ -141,21 +141,20 @@
     const pb = parseInt(cs.paddingBottom) || 0;
     const pl = parseInt(cs.paddingLeft) || 0;
 
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
+    // position: fixed — координаты уже относительно viewport, scroll не нужен
 
     // Margin box: размер = rect + margin
     const marginW = rect.width + ml + mr;
     const marginH = rect.height + mt + mb;
-    marginOverlay.style.top = `${rect.top + scrollY - mt}px`;
-    marginOverlay.style.left = `${rect.left + scrollX - ml}px`;
+    marginOverlay.style.top = `${rect.top - mt}px`;
+    marginOverlay.style.left = `${rect.left - ml}px`;
     marginOverlay.style.width = `${marginW}px`;
     marginOverlay.style.height = `${marginH}px`;
     marginOverlay.style.display = 'block';
 
     // Padding box: начинается от края rect, размер = rect.width/height
-    paddingOverlay.style.top = `${rect.top + scrollY}px`;
-    paddingOverlay.style.left = `${rect.left + scrollX}px`;
+    paddingOverlay.style.top = `${rect.top}px`;
+    paddingOverlay.style.left = `${rect.left}px`;
     paddingOverlay.style.width = `${rect.width}px`;
     paddingOverlay.style.height = `${rect.height}px`;
     paddingOverlay.style.display = 'block';
@@ -163,8 +162,8 @@
     // Content box: rect минус padding
     const contentW = rect.width - pl - pr;
     const contentH = rect.height - pt - pb;
-    boxModelOverlay.style.top = `${rect.top + scrollY + pt}px`;
-    boxModelOverlay.style.left = `${rect.left + scrollX + pl}px`;
+    boxModelOverlay.style.top = `${rect.top + pt}px`;
+    boxModelOverlay.style.left = `${rect.left + pl}px`;
     boxModelOverlay.style.width = `${contentW}px`;
     boxModelOverlay.style.height = `${contentH}px`;
     boxModelOverlay.style.display = 'block';
@@ -240,7 +239,7 @@
       pointerEvents: 'none',
       zIndex: '2147483647',
       display: 'none',
-      background: '#ff4444',
+      background: '#ff7675',
       color: 'white',
       fontFamily: 'monospace, system-ui, sans-serif',
       fontSize: '11px',
@@ -290,9 +289,9 @@
     distanceLine.innerHTML = `
       <line x1="${x1 - minX + padding}" y1="${y1 - minY + padding}" 
             x2="${x2 - minX + padding}" y2="${y2 - minY + padding}" 
-            stroke="#ff4444" stroke-width="2" stroke-dasharray="4,3"/>
-      <circle cx="${x1 - minX + padding}" cy="${y1 - minY + padding}" r="4" fill="#ff4444"/>
-      <circle cx="${x2 - minX + padding}" cy="${y2 - minY + padding}" r="4" fill="#ff4444"/>
+            stroke="#ff7675" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <circle cx="${x1 - minX + padding}" cy="${y1 - minY + padding}" r="3" fill="#ff7675"/>
+      <circle cx="${x2 - minX + padding}" cy="${y2 - minY + padding}" r="3" fill="#ff7675"/>
     `;
 
     // Метка посередине
@@ -387,9 +386,8 @@
 
   // === Привязка слушателей событий ===
   function attachEventListeners() {
-    // Отслеживание наведения на элементы
-    document.addEventListener('mouseenter', onMouseEnter, true);
-    document.addEventListener('mouseleave', onMouseLeave, true);
+    // Отслеживание движения мыши для определения элемента под курсором
+    document.addEventListener('mousemove', onMouseMove, true);
 
     // Перехват кликов в фазе погружения
     document.addEventListener('click', onClick, true);
@@ -401,9 +399,61 @@
     document.addEventListener('keydown', onKeyDown, true);
 
     // Измерение расстояния: Alt + mousedown + mousemove + mouseup
-    document.addEventListener('mousedown', onMouseDown, true);
-    document.addEventListener('mousemove', onMouseMoveForDistance, true);
-    document.addEventListener('mouseup', onMouseUp, true);
+    document.addEventListener('mousedown', onMouseDownMeasure, true);
+    document.addEventListener('mouseup', onMouseUpMeasure, true);
+  }
+
+  // === Обработка движения мыши ===
+  let moveThrottle = null;
+  function onMouseMove(e) {
+    if (!settings.extensionEnabled) return;
+
+    // Если зажат Alt — измеряем расстояние
+    if (draggingElement) {
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (!target || target === draggingElement || target === document.body || target === document.documentElement) {
+        hideDistanceVisuals();
+        return;
+      }
+      updateDistanceVisuals(draggingElement, target);
+      return;
+    }
+
+    // Пропускаем если сработал Ctrl+Scroll (lockedSelection)
+    if (lockedSelection) return;
+
+    // Пропускаем служебные элементы
+    const target = e.target;
+    if (!target || target === highlightOverlay || target === toastElement ||
+        target === infoPanel || target === marginOverlay || target === paddingOverlay ||
+        target === boxModelOverlay || target === distanceLine || target === distanceLabel ||
+        target === distancePanel) {
+      return;
+    }
+
+    // Игнорируем body и html
+    if (target === document.body || target === document.documentElement) {
+      hideOverlay();
+      hideInfoPanel();
+      hideBoxModel();
+      hoveredElement = null;
+      return;
+    }
+
+    // Обычное движение сбрасывает ручной выбор (Ctrl+Scroll)
+    lockedSelection = null;
+
+    // Throttle — обновляем не чаще каждого кадра
+    if (moveThrottle) return;
+    moveThrottle = requestAnimationFrame(() => {
+      moveThrottle = null;
+      hoveredElement = target;
+      updateOverlayPosition(target);
+      updateInfoPanel(target);
+      updateBoxModel(target);
+      showOverlay();
+      showInfoPanel();
+    });
   }
 
   // === Единая функция выбора элемента (подсветка + инфо-панель + box model) ===
@@ -486,74 +536,23 @@
     }
   }
 
-  // === Измерение расстояния между элементами (Alt + мousedown + наведение) ===
-  function onMouseDown(e) {
+  // === Измерение расстояния между элементами (Alt + mousedown + mousemove + mouseup) ===
+  function onMouseDownMeasure(e) {
     if (!e.altKey || !settings.extensionEnabled) return;
 
     const target = e.target;
-    if (!target || target === highlightOverlay || target === toastElement || target === infoPanel || target === distancePanel) return;
+    if (!target || target === highlightOverlay || target === toastElement || target === infoPanel ||
+        target === marginOverlay || target === paddingOverlay || target === boxModelOverlay ||
+        target === distanceLine || target === distanceLabel) return;
     if (target === document.body || target === document.documentElement) return;
 
     draggingElement = target;
     e.preventDefault();
   }
 
-  function onMouseMoveForDistance(e) {
-    if (!draggingElement) return;
-
-    const target = document.elementFromPoint(e.clientX, e.clientY);
-    if (!target || target === draggingElement || target === document.body || target === document.documentElement) {
-      hideDistanceVisuals();
-      return;
-    }
-
-    updateDistanceVisuals(draggingElement, target);
-  }
-
-  function onMouseUp() {
+  function onMouseUpMeasure() {
     hideDistanceVisuals();
     draggingElement = null;
-  }
-
-  // === Обработка mouseenter ===
-  function onMouseEnter(e) {
-    if (!settings.extensionEnabled) return;
-
-    const target = e.target;
-
-    // Игнорируем служебные элементы
-    if (!target || target === highlightOverlay || target === toastElement || target === infoPanel) {
-      return;
-    }
-
-    // Обычное наведение сбрасывает ручной выбор (Ctrl+Scroll)
-    lockedSelection = null;
-
-    // Игнорируем body и html
-    if (target === document.body || target === document.documentElement) {
-      hideOverlay();
-      hideInfoPanel();
-      hoveredElement = null;
-      return;
-    }
-
-    hoveredElement = target;
-    updateOverlayPosition(target);
-    updateInfoPanel(target);
-    updateBoxModel(target);
-    showOverlay();
-    showInfoPanel();
-  }
-
-  // === Обработка mouseleave ===
-  function onMouseLeave(e) {
-    // Проверяем, что курсор покинул hoveredElement
-    if (e.target === hoveredElement) {
-      hideOverlay();
-      hideInfoPanel();
-      hideBoxModel();
-      hoveredElement = null;
-    }
   }
 
   // === Обработка клика ===
@@ -630,9 +629,10 @@
     if (!highlightOverlay || !element) return;
 
     const rect = element.getBoundingClientRect();
-    
-    highlightOverlay.style.top = `${rect.top + window.scrollY}px`;
-    highlightOverlay.style.left = `${rect.left + window.scrollX}px`;
+
+    // position: fixed — координаты уже относительно viewport, scroll не нужен
+    highlightOverlay.style.top = `${rect.top}px`;
+    highlightOverlay.style.left = `${rect.left}px`;
     highlightOverlay.style.width = `${rect.width}px`;
     highlightOverlay.style.height = `${rect.height}px`;
   }
